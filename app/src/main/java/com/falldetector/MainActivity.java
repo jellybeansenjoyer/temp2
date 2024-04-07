@@ -1,17 +1,22 @@
 package com.falldetector;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.Uri;
 import android.os.CountDownTimer;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -22,6 +27,7 @@ import android.widget.CompoundButton;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import com.jjoe64.graphview.DefaultLabelFormatter;
 import com.jjoe64.graphview.GraphView;
@@ -34,11 +40,13 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
+    private static final int SEND_SMS_PERMISSION_REQUEST_CODE = 2; // Define a constant for the request code
+
     private Context context = this;
     SensorListener sensorListener;
     Boolean running = false;
     Location location;
-    String alert_message = "http://www.google.com/maps/place/";
+    String alert_message = "I have fallen help meee!!!! http://www.google.com/maps/place/";
     LocationManager mLocationManager;
     AlertDialog alertDialog;
 
@@ -78,11 +86,54 @@ public class MainActivity extends AppCompatActivity {
     private Switch mSwitch;
     private LineGraphSeries<DataPoint> mSeries;
     private CustomAdapter adapter;
+    private static final int READ_CONTACTS_PERMISSION_REQUEST_CODE = 1;
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == READ_CONTACTS_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, proceed with your logic to read contacts
+                readContacts();
+            } else {
+                // Permission denied, handle the denied scenario gracefully
+                Toast.makeText(this, "Permission denied. Cannot read contacts.",
+                        Toast.LENGTH_SHORT).show();
+                // Optionally, you can disable functionality that requires the permission
+            }
+        }
+        if (requestCode == SEND_SMS_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, proceed with sending SMS
+//                sendSMS(phoneNumber, message); // Call your method to send SMS
+            } else {
+                // Permission denied, handle the denied scenario gracefully
+                Toast.makeText(this, "Permission denied. Cannot send SMS.",
+                        Toast.LENGTH_SHORT).show();
+                // Optionally, you can disable functionality that requires the permission
+            }
+        }
+    }
+    private void readContacts() {
+        // Your logic to read contacts goes here
+        Toast.makeText(this, "Reading contacts...", Toast.LENGTH_SHORT).show();
+    }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main_page);
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED) {
+            // Permission is not granted, request it
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.READ_CONTACTS},
+                    READ_CONTACTS_PERMISSION_REQUEST_CODE);
+        } else {
+            // Permission is already granted, proceed with your logic to read contacts
+            readContacts();
+        }
         initialize();
         check_fall_thread();
         check_location_enabled();
@@ -294,6 +345,12 @@ public class MainActivity extends AppCompatActivity {
         sms.sendTextMessage(phoneNumber, null, message, null, null);
     }
 
+    private void requestSendSMSPermission() {
+        ActivityCompat.requestPermissions(this,
+                new String[]{Manifest.permission.SEND_SMS},
+                SEND_SMS_PERMISSION_REQUEST_CODE);
+    }
+
     private void generate_alert() {
         alertDialog.setTitle("Fall Detected!");
         alertDialog.setMessage("00:10");
@@ -308,7 +365,15 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onFinish() {
                 alertDialog.dismiss();
-                alert_SMS(phoneList);
+//                alert_SMS(phoneList);
+                if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.SEND_SMS)
+                        != PackageManager.PERMISSION_GRANTED) {
+                    // Permission is not granted, request it
+                    requestSendSMSPermission();
+                } else {
+                    // Permission is already granted, proceed with sending SMS
+                     alert_SMS(phoneList);
+                }
             }
         }.start();
     }
@@ -424,6 +489,5 @@ public class MainActivity extends AppCompatActivity {
         else
             return true;
     }
-
 
 }
